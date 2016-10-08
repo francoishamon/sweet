@@ -2215,6 +2215,9 @@ public:
 			const double *i_kernel_data
 	)
 	{
+		DataArray<D> out = *this;
+
+#if SWEET_USE_SPECTRAL_SPACE
 		bool was_spectral = false;
 		if (this->array_data_spectral_space_valid)
 		{
@@ -2225,8 +2228,9 @@ public:
 			std::cout << "Uninitialized DataArray in op_stencil_Re_3x3" << std::endl;
 			exit(-1);
 		}
+      out.array_data_spectral_space_valid=false;
+#endif
 
-		DataArray<D> out = *this;
 
 		int res_x = resolution[0];
 		int res_y = resolution[1];
@@ -2273,11 +2277,13 @@ public:
 			}
 		}
 
+#if SWEET_USE_SPECTRAL_SPACE
 		if (was_spectral)
 		{
 			this->requestDataInSpectralSpace();
 			out.requestDataInSpectralSpace();
 		}
+#endif
 
 		return out;
 	}
@@ -2290,6 +2296,9 @@ public:
 			const double *i_kernel_data
 	)
 	{
+		DataArray<2> out(resolution);
+
+#if SWEET_USE_SPECTRAL_SPACE
 		bool was_spectral = false;
 		if (this->array_data_spectral_space_valid)
 		{
@@ -2300,9 +2309,9 @@ public:
 			std::cout << "Uninitialized DataArray in op_stencil_Re_3x3" << std::endl;
 			exit(-1);
 		}
-
-		DataArray<2> out(resolution);
 		out.array_data_spectral_space_valid=false;
+#endif
+
 		int res_x = resolution[0];
 		int res_y = resolution[1];
 
@@ -2348,11 +2357,13 @@ public:
 			}
 		}
 
+#if SWEET_USE_SPECTRAL_SPACE
 		if (was_spectral)
 		{
 			this->requestDataInSpectralSpace();
 			out.requestDataInSpectralSpace();
 		}
+#endif
 
 		return out;
 	}
@@ -2382,12 +2393,9 @@ public:
 		rw_array_data.requestDataInSpectralSpace();
 
 		// determine maximum value for tolerance
-		if (i_tolerance != 0.0)
-		{
-			double max_value = i_array_data.reduce_spec_maxAbs();
-			i_tolerance *= max_value;
-			i_tolerance *= (resolution[0]+resolution[1]);	// the larger the matrix, the less the accuracy
-		}
+      double max_value = i_array_data.reduce_spec_maxAbs();
+      i_tolerance *= max_value;
+      i_tolerance *= (resolution[0]+resolution[1]);	// the larger the matrix, the less the accuracy
 
 #if SWEET_THREADING
 #pragma omp parallel for OPENMP_PAR_SIMD
@@ -2396,17 +2404,10 @@ public:
 		{
 			double ar = array_data_spectral_space[i];
 			double ai = array_data_spectral_space[i+1];
-//			std::cout << "ar: " << ar << "+" << ai << std::endl;
-
 			double br = i_array_data.array_data_spectral_space[i];
 			double bi = i_array_data.array_data_spectral_space[i+1];
-//			std::cout << "br: " << br << "+" << bi << std::endl;
 
 			double den = (br*br+bi*bi);
-
-			/* Used for debugging
-			*/
-//			std::cout << "Den l r: " << den << "\t" << ar << "+" << ai << "\t" << br << "+" << bi << std::endl;
 
 			if (std::abs(den) <= i_tolerance)
 			{
@@ -3983,9 +3984,7 @@ public:
 		out.checkConsistency();
 		return out;
 	}
-#endif
 
-#if SWEET_USE_SPECTRAL_SPACE
 	inline
 	void printSpectrum()	const
 	{
@@ -4011,7 +4010,6 @@ public:
 			std::cout << std::endl;
 		}
 	}
-#endif
 
 	inline
 	void printSpectrumIndex()	const
@@ -4102,6 +4100,7 @@ public:
 				}
 			}
 		}
+#endif
 
 
 	/**
@@ -4178,7 +4177,7 @@ public:
 		return true;
 	}
 
-
+#if SWEET_USE_SPECTRAL_SPACE
 	/**
 	 * Write data to ASCII file
 	 *
@@ -4220,6 +4219,7 @@ public:
 		checkConsistency();
 		return true;
 	}
+#endif
 
 
 	/**
