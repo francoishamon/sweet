@@ -176,19 +176,37 @@ public:
 		/**
 		 * Initial propagation
 		 */
-		CONSOLEPREFIX_start(0);
-		parareal_simulationInstances[0]->run_timestep_coarse();
-		for (int i = 1; i < pVars->coarse_slices; i++)
+		Parareal_Data &initialFields = parareal_simulationInstances[0]->get_data_timestep_start();
 		{
-			CONSOLEPREFIX_start(i-1);
-			Parareal_Data &tmp = parareal_simulationInstances[i-1]->get_data_timestep_coarse();
+			// Receive initial fields for setting prev data in semi Lagrangian case
+			Parareal_Data &tmp2 = initialFields;
+			CONSOLEPREFIX_start(0);
+			parareal_simulationInstances[0]->run_timestep_coarse();
+			for (int i = 1; i < pVars->coarse_slices; i++)
+			{
+				CONSOLEPREFIX_start(i-1);
+				Parareal_Data &tmp = parareal_simulationInstances[i-1]->get_data_timestep_coarse();
 
-				// use coarse time step output data as initial data of next coarse time step
-			CONSOLEPREFIX_start(i);
-			parareal_simulationInstances[i]->sim_set_data(tmp);
+				//use coarse time step output data as initial data of next coarse time step
+				if (parareal_simulationInstances[0]->get_semi_lagrangian())
+				{
+				   if (i > 1)
+				   {
+					  CONSOLEPREFIX_start(i-2);
+					  tmp2 = parareal_simulationInstances[i-2]->get_data_timestep_coarse();
+				   }
+				   CONSOLEPREFIX_start(i);
+				   parareal_simulationInstances[i]->sim_set_data(tmp,tmp2);
+				}
+				else
+				{
+				   CONSOLEPREFIX_start(i);
+				   parareal_simulationInstances[i]->sim_set_data(tmp);
+				}
 
-			// run coarse time step
-			parareal_simulationInstances[i]->run_timestep_coarse();
+				//run coarse time step
+				parareal_simulationInstances[i]->run_timestep_coarse();
+			}
 		}
 
 
@@ -283,9 +301,23 @@ public:
 				{
 					CONSOLEPREFIX_start(i);
 					Parareal_Data &tmp = parareal_simulationInstances[i]->get_output_data();
+					if (parareal_simulationInstances[0]->get_semi_lagrangian())
+					{
+						Parareal_Data &tmp2 = parareal_simulationInstances[0]->get_data_timestep_start();
+						if (i > 0)
+					 	{
+							CONSOLEPREFIX_start(i-1);
+							tmp2 = parareal_simulationInstances[i-1]->get_output_data();
+						}
 
-					CONSOLEPREFIX_start(i+1);
-					parareal_simulationInstances[i+1]->sim_set_data(tmp);
+						CONSOLEPREFIX_start(i+1);
+						parareal_simulationInstances[i+1]->sim_set_data(tmp,tmp2);
+					}
+					else
+					{
+						CONSOLEPREFIX_start(i+1);
+						parareal_simulationInstances[i+1]->sim_set_data(tmp);
+					}
 				}
 
 			}
