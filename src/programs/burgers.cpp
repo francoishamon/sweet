@@ -153,7 +153,6 @@ public:
 #if SWEET_PARAREAL != 0
 		,
 		_parareal_data_start_u(simVars.disc.res), _parareal_data_start_v(simVars.disc.res),
-		_parareal_data_start_u_prev(simVars.disc.res), _parareal_data_start_v_prev(simVars.disc.res),
 		_parareal_data_fine_u(simVars.disc.res), _parareal_data_fine_v(simVars.disc.res),
 		_parareal_data_coarse_u(simVars.disc.res), _parareal_data_coarse_v(simVars.disc.res),
 		_parareal_data_output_u(simVars.disc.res), _parareal_data_output_v(simVars.disc.res),
@@ -1072,9 +1071,6 @@ public:
 	DataArray<2> _parareal_data_start_u, _parareal_data_start_v;
 	Parareal_Data_DataArrays<2> parareal_data_start;
 
-	DataArray<2> _parareal_data_start_u_prev, _parareal_data_start_v_prev;
-	Parareal_Data_DataArrays<2> parareal_data_start_prev;
-
 	DataArray<2> _parareal_data_fine_u, _parareal_data_fine_v;
 	Parareal_Data_DataArrays<2> parareal_data_fine;
 
@@ -1097,11 +1093,6 @@ public:
 		{
 			DataArray<2>* data_array[2] = {&_parareal_data_start_u, &_parareal_data_start_v};
 			parareal_data_start.setup(data_array);
-		}
-
-		{
-			DataArray<2>* data_array[2] = {&_parareal_data_start_u_prev, &_parareal_data_start_v_prev};
-			parareal_data_start_prev.setup(data_array);
 		}
 
 		{
@@ -1161,9 +1152,6 @@ public:
 		*parareal_data_start.data_arrays[0] = prog_u;
 		*parareal_data_start.data_arrays[1] = prog_v;
 
-		*parareal_data_start_prev.data_arrays[0] = prog_u_prev
-		*parareal_data_start_prev.data_arrays[1] = prog_v_prev;
-
 	}
 
 	/**
@@ -1185,27 +1173,6 @@ public:
 	}
 
 	/**
-	 * Set simulation data to data given in i_sim_data.
-	 * This can be data which is computed by another simulation.
-	 * Y^S := i_sim_data
-	 * Y^S_old := i_pararealData_old
-	 */
-	void sim_set_data(
-			Parareal_Data &i_pararealData,
-			Parareal_Data &i_pararealData_old
-	)
-	{
-		if (simVars.parareal.verbosity > 2)
-			std::cout << "sim_set_data()" << std::endl;
-
-		// copy to buffers
-		parareal_data_start = i_pararealData;
-		parareal_data_start_prev = i_pararealData_old;
-
-		// cast to pararealDataArray stuff
-	}
-
-	/**
 	 * Set the MPI communicator to use for simulation purpose
 	 * (TODO: not yet implemented since our parallelization-in-space
 	 * is done only via OpenMP)
@@ -1215,15 +1182,6 @@ public:
 	)
 	{
 		// NOTHING TO DO HERE
-	}
-
-	/**
-	 * return whether the calculation is done with semi-Lagrangian
-	 * time stepping
-	 */
-	bool get_semi_lagrangian()
-	{
-		return param_semilagrangian;
 	}
 
 	/**
@@ -1238,30 +1196,28 @@ public:
 		prog_u = *parareal_data_start.data_arrays[0];
 		prog_v = *parareal_data_start.data_arrays[1];
 
-		if (prog_u.reduce_all_finite() && prog_v.reduce_all_finite()){
-			// reset simulation time
-			simVars.timecontrol.current_simulation_time = timeframe_start;
-			simVars.timecontrol.max_simulation_time = timeframe_end;
-			simVars.timecontrol.current_timestep_nr = 0;
+		// reset simulation time
+		simVars.timecontrol.current_simulation_time = timeframe_start;
+		simVars.timecontrol.max_simulation_time = timeframe_end;
+		simVars.timecontrol.current_timestep_nr = 0;
 
-			simVars.disc.timestepping_runge_kutta_order = param_time_scheme;
+		simVars.disc.timestepping_runge_kutta_order = param_time_scheme;
 
-			bool was_sl = false;
-			if (param_semilagrangian)
-			{
-				param_semilagrangian = false;
-				was_sl = true;
-			}
-
-			while (simVars.timecontrol.current_simulation_time < timeframe_end)
-			{
-				this->run_timestep();
-				assert(simVars.timecontrol.current_simulation_time <= timeframe_end);
-			}
-
-			if (was_sl)
-				param_semilagrangian = true;
+		bool was_sl = false;
+		if (param_semilagrangian)
+		{
+			param_semilagrangian = false;
+			was_sl = true;
 		}
+
+		while (simVars.timecontrol.current_simulation_time < timeframe_end)
+		{
+			this->run_timestep();
+			assert(simVars.timecontrol.current_simulation_time <= timeframe_end);
+		}
+
+		if (was_sl)
+			param_semilagrangian = true;
 
 		// copy to buffers
 		*parareal_data_fine.data_arrays[0] = prog_u;
@@ -1418,12 +1374,6 @@ public:
 		prog_u = *parareal_data_start.data_arrays[0];
 		prog_v = *parareal_data_start.data_arrays[1];
 
-		if (param_semilagrangian)
-		{
-			prog_u_prev = *parareal_data_start_prev.data_arrays[0];
-			prog_v_prev = *parareal_data_start_prev.data_arrays[1];
-		}
-
 		// reset simulation time
 		simVars.timecontrol.current_simulation_time = timeframe_start;
 		simVars.timecontrol.max_simulation_time = timeframe_end;
@@ -1463,17 +1413,7 @@ public:
 		return parareal_data_coarse;
 	}
 
-	/**
-	 * return the data before the timestepping:
-	 * return Y^S
-	 */
-	Parareal_Data& get_data_timestep_start()
-	{
-		if (simVars.parareal.verbosity > 2)
-			std::cout << "get_data_timestep_start()" << std::endl;
 
-		return parareal_data_start;
-	}
 
 	/**
 	 * Compute the error between the fine and coarse timestepping:
@@ -1653,9 +1593,6 @@ int main(int i_argc, char *i_argv[])
 	param_use_staggering = simVars.bogus.var[2];
 	param_semilagrangian = simVars.bogus.var[3];
 	param_time_scheme_coarse = simVars.bogus.var[4];
-
-	//Added to overwrite the -R option
-	simVars.disc.timestepping_runge_kutta_order = simVars.bogus.var[0];
 
 
 	std::ostringstream buf;

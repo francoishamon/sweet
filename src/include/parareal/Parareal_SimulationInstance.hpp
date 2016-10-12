@@ -49,17 +49,6 @@ public:
 	) = 0;
 
 	/**
-	 * Set simulation data to data given in i_sim_data.
-	 * This can be data which is computed by another simulation.
-	 * Y^S := i_sim_data
-	 * Y^S_old := i_pararealData_old
-	 */
-	virtual void sim_set_data(
-			Parareal_Data &i_pararealData,
-			Parareal_Data &i_pararealData_old
-	) = 0;
-
-	/**
 	 * Set the MPI communicator to use for simulation purpose
 	 * (TODO: not yet implemented since our parallelization-in-space
 	 * is done only via OpenMP)
@@ -67,12 +56,6 @@ public:
 	virtual void sim_set_mpi_comm(
 			int i_mpi_comm
 	) = 0;
-
-	/**
-	 * return whether the calculation is done with semi-Lagrangian
-	 * time stepping
-	 */
-	virtual bool get_semi_lagrangian() = 0;
 
 	/**
 	 * compute solution on time slice with fine timestep:
@@ -104,13 +87,6 @@ public:
 	 */
 	virtual
 	Parareal_Data& get_data_timestep_coarse() = 0;
-
-	/**
-	 * return the data before timestepping:
-	 * return Y^S
-	 */
-	virtual
-	Parareal_Data& get_data_timestep_start() = 0;
 
 
 	/**
