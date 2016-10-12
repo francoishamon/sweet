@@ -153,9 +153,12 @@ public:
 #if SWEET_PARAREAL != 0
 		,
 		_parareal_data_start_u(simVars.disc.res), _parareal_data_start_v(simVars.disc.res),
+		_parareal_data_start_u_prev(simVars.disc.res), _parareal_data_start_v_prev(simVars.disc.res),
 		_parareal_data_fine_u(simVars.disc.res), _parareal_data_fine_v(simVars.disc.res),
 		_parareal_data_coarse_u(simVars.disc.res), _parareal_data_coarse_v(simVars.disc.res),
+		_parareal_data_coarse_u_prev(simVars.disc.res), _parareal_data_coarse_v_prev(simVars.disc.res),
 		_parareal_data_output_u(simVars.disc.res), _parareal_data_output_v(simVars.disc.res),
+		_parareal_data_output_u_prev(simVars.disc.res), _parareal_data_output_v_prev(simVars.disc.res),
 		_parareal_data_error_u(simVars.disc.res), _parareal_data_error_v(simVars.disc.res)
 #endif
 	{
@@ -1068,17 +1071,20 @@ public:
 	 ******************************************************
 	 ******************************************************/
 
-	DataArray<2> _parareal_data_start_u, _parareal_data_start_v;
-	Parareal_Data_DataArrays<2> parareal_data_start;
+	DataArray<2> _parareal_data_start_u, _parareal_data_start_v,
+		_parareal_data_start_u_prev, _parareal_data_start_v_prev;
+	Parareal_Data_DataArrays<4> parareal_data_start;
 
 	DataArray<2> _parareal_data_fine_u, _parareal_data_fine_v;
 	Parareal_Data_DataArrays<2> parareal_data_fine;
 
-	DataArray<2> _parareal_data_coarse_u, _parareal_data_coarse_v;
-	Parareal_Data_DataArrays<2> parareal_data_coarse;
+	DataArray<2> _parareal_data_coarse_u, _parareal_data_coarse_v,
+		_parareal_data_coarse_u_prev, _parareal_data_coarse_v_prev;
+	Parareal_Data_DataArrays<4> parareal_data_coarse;
 
-	DataArray<2> _parareal_data_output_u, _parareal_data_output_v;
-	Parareal_Data_DataArrays<2> parareal_data_output;
+	DataArray<2> _parareal_data_output_u, _parareal_data_output_v,
+		_parareal_data_output_u_prev, _parareal_data_output_v_prev;
+	Parareal_Data_DataArrays<4> parareal_data_output;
 
 	DataArray<2> _parareal_data_error_u, _parareal_data_error_v;
 	Parareal_Data_DataArrays<2> parareal_data_error;
@@ -1091,7 +1097,8 @@ public:
 	void parareal_setup()
 	{
 		{
-			DataArray<2>* data_array[2] = {&_parareal_data_start_u, &_parareal_data_start_v};
+			DataArray<2>* data_array[4] = {&_parareal_data_start_u, &_parareal_data_start_v,
+					&_parareal_data_start_u_prev, &_parareal_data_start_v_prev};
 			parareal_data_start.setup(data_array);
 		}
 
@@ -1101,12 +1108,14 @@ public:
 		}
 
 		{
-			DataArray<2>* data_array[2] = {&_parareal_data_coarse_u, &_parareal_data_coarse_v};
+			DataArray<2>* data_array[4] = {&_parareal_data_coarse_u, &_parareal_data_coarse_v,
+					&_parareal_data_coarse_u_prev, &_parareal_data_coarse_v_prev};
 			parareal_data_coarse.setup(data_array);
 		}
 
 		{
-			DataArray<2>* data_array[2] = {&_parareal_data_output_u, &_parareal_data_output_v};
+			DataArray<2>* data_array[4] = {&_parareal_data_output_u, &_parareal_data_output_v,
+					&_parareal_data_output_u_prev, &_parareal_data_output_v_prev};
 			parareal_data_output.setup(data_array);
 		}
 
@@ -1151,6 +1160,8 @@ public:
 
 		*parareal_data_start.data_arrays[0] = prog_u;
 		*parareal_data_start.data_arrays[1] = prog_v;
+		*parareal_data_start.data_arrays[2] = prog_u_prev;
+		*parareal_data_start.data_arrays[3] = prog_v_prev;
 
 	}
 
@@ -1229,7 +1240,7 @@ public:
 	 * return the data after running computations with the fine timestepping:
 	 * return Y^F
 	 */
-	Parareal_Data& get_data_timestep_fine()
+	Parareal_Data& get_reference_to_data_timestep_fine()
 	{
 		if (simVars.parareal.verbosity > 2)
 			std::cout << "get_data_timestep_fine()" << std::endl;
@@ -1373,6 +1384,14 @@ public:
 
 		prog_u = *parareal_data_start.data_arrays[0];
 		prog_v = *parareal_data_start.data_arrays[1];
+		prog_u_prev = *parareal_data_start.data_arrays[2];
+		prog_v_prev = *parareal_data_start.data_arrays[3];
+
+		//Preserve parareal_data_start for next tmiestep to be prog_u_prev
+		*parareal_data_output.data_arrays[2] = prog_u;
+		*parareal_data_output.data_arrays[3] = prog_v;
+		*parareal_data_coarse.data_arrays[2] = prog_u;
+		*parareal_data_coarse.data_arrays[3] = prog_v;
 
 		// reset simulation time
 		simVars.timecontrol.current_simulation_time = timeframe_start;
@@ -1405,7 +1424,7 @@ public:
 	 * return the solution after the coarse timestepping:
 	 * return Y^C
 	 */
-	Parareal_Data& get_data_timestep_coarse()
+	Parareal_Data& get_reference_to_data_timestep_coarse()
 	{
 		if (simVars.parareal.verbosity > 2)
 			std::cout << "get_data_timestep_coarse()" << std::endl;
@@ -1488,7 +1507,7 @@ public:
 	 * Return the data to be forwarded to the next coarse time step interval:
 	 * return Y^O
 	 */
-	Parareal_Data& get_output_data()
+	Parareal_Data& get_reference_to_output_data()
 	{
 		if (simVars.parareal.verbosity > 2)
 			std::cout << "get_output_data()" << std::endl;
@@ -1503,7 +1522,7 @@ public:
 			int time_slice_id
 	)
 	{
-		Parareal_Data_DataArrays<2>& data = (Parareal_Data_DataArrays<2>&)i_data;
+		Parareal_Data_DataArrays<4>& data = (Parareal_Data_DataArrays<4>&)i_data;
 
 		std::ostringstream ss;
 		ss << simVars.misc.output_file_name_prefix << "_iter" << iteration_id << "_slice" << time_slice_id << ".csv";
@@ -1521,7 +1540,8 @@ public:
 
 		compute_errors();
 
-		benchmark_analytical_error.file_saveSpectralData_ascii(filename2.c_str());
+		benchmark_analytical_error.file_saveData_ascii(filename2.c_str());
+		//benchmark_analytical_error.file_saveSpectralData_ascii(filename2.c_str());
 
 		//data.data_arrays[0]->file_saveData_vtk(filename.c_str(), filename.c_str());
 	}
