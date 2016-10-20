@@ -194,6 +194,8 @@ public:
 		prog_v.set_spec_all(0,0);
 #endif
 
+		tmp.set_all(0);
+
 		//Setup prog vars
 		prog_u.set_all(0);
 		prog_v.set_all(0);
@@ -348,21 +350,12 @@ public:
 					prog_u*prog_u +
 					prog_v*prog_v
 				).reduce_sum_quad()) * normalization;
-		/*
-		 * Not used with the Burgers equation
-		 *
-		 * // mass
-		 * simVars.diag.total_mass = -1;
-		 *
-		 * // potential enstropy
-		 * simVars.diag.total_potential_enstrophy = -1;
-		 */
 	}
 
 
-	void set_source( DataArray<2> &o_u_t )
+	void set_source( DataArray<2> &o_u_t, double i_simulation_time )
 	{
-		double t = simVars.timecontrol.current_simulation_time;
+		double t = i_simulation_time;
 		double tp = 2.0*M_PIl;
 
 		/*
@@ -684,7 +677,8 @@ public:
 		//TODO: staggering vs. non staggering
 
 		DataArray<2> f(i_u.resolution);
-		set_source(f);
+		set_source(f,i_simulation_timestamp);
+		o_tmp_t.set_all(0);
 
 		/*
 		 * u and v updates
@@ -750,7 +744,7 @@ public:
 
 		// Initialize and set timestep dependent source for manufactured solution
 		DataArray<2> f(io_u.resolution);
-		set_source(f);
+		set_source(f,simVars.timecontrol.current_simulation_time);
 		f.requestDataInSpectralSpace();
 
 		// Modify timestep to final time if necessary
@@ -1385,7 +1379,7 @@ public:
 		prog_u_prev = *parareal_data_start.data_arrays[2];
 		prog_v_prev = *parareal_data_start.data_arrays[3];
 
-		//Preserve parareal_data_start for next tmiestep to be prog_u_prev
+		//Preserve parareal_data_start for next timestep to be prog_u_prev
 		*parareal_data_output.data_arrays[2] = prog_u;
 		*parareal_data_output.data_arrays[3] = prog_v;
 		*parareal_data_coarse.data_arrays[2] = prog_u;
@@ -1619,6 +1613,8 @@ int main2(int i_argc, char *i_argv[])
 #if SWEET_PARAREAL
 		if (simVars.parareal.enabled)
 		{
+			//Time counter
+			Stopwatch time;
 			/*
 			 * Allocate parareal controller and provide class
 			 * which implement the parareal features
@@ -1628,8 +1624,17 @@ int main2(int i_argc, char *i_argv[])
 			// setup controller. This initializes several simulation instances
 			parareal_Controller_Serial.setup(&simVars.parareal);
 
+			//Start counting time
+			time.reset();
+
 			// execute the simulation
 			parareal_Controller_Serial.run();
+
+			//Stop counting time
+			time.stop();
+
+			double seconds = time();
+			std::cout << std::endl << "Simulation time (seconds): " << seconds << std::endl;
 		}
 		else
 #endif
