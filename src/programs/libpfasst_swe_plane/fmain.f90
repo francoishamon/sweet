@@ -87,21 +87,24 @@ contains
 
      ! LibPFASST parameters
      pf%nlevels = num_levs
-     pf%niters  = 4                   ! number of SDC iterations 
+     pf%niters  = 10                  ! number of SDC iterations
      qtype_name = 'SDC_GAUSS_LOBATTO' ! type of nodes hard coded for now
      qtype      = translate_qtype(qtype_name, & 
                                   qnl)
 
      nfields = 3                           ! three fields (horizontal velocities and height)
      nnodes  = [2, 3, 5]                   ! number of nodes for the levels
-     nvars   = [nfields*nvars_per_field, & 
-                nfields*nvars_per_field, &
+     nvars   = [nfields*nvars_per_field/4, & 
+                nfields*nvars_per_field/2, & 
                 nfields*nvars_per_field]   ! number of degrees of freedom for the levels
 
      print *, nvars
      
      ! loop over levels to initialize level-specific data structures
      do level = 1, pf%nlevels
+
+       ! define the level id
+       pf%levels(level)%level = level ! confusing!
 
        ! trivial zero-order predictor
        pf%levels(level)%nsweeps_pred = 1
@@ -152,11 +155,11 @@ contains
                      fecho_error)
     call pf_add_hook(pf,            &
                      -1,            &
-                     PF_POST_SWEEP, &
+                     PF_POST_STEP,  &
                      fecho_residual)   
 
     ! advance in time with libpfasst
-    level = 1
+    level = num_levs
     call pf_pfasst_run(pf,                    & 
                        pf%levels(level)%Q(1), &
                        dt,                    &

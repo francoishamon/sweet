@@ -78,6 +78,8 @@ int main(int i_argc, char *i_argv[])
    * SETUP the LevelSingletons for all levels
    **********************************************************/
   
+  // note: level #param_max_levels-1 is the finest, level #0 is the coarsest
+
   // define the number of levels
   param_max_levels = 3;
   
@@ -98,12 +100,13 @@ int main(int i_argc, char *i_argv[])
 					       );
   
   // define the number of modes for the coarser levels
+  int denominator = 2;
   for (int i = 1; i < param_max_levels; i++)
     {
       levelSingletons[param_max_levels-1-i].dataConfig.setupAdditionalModes(
 									    &(levelSingletons[param_max_levels-i].dataConfig),
-									    0,
-									    0
+									    -simVars.disc.res_spectral[0]/denominator,
+									    -simVars.disc.res_spectral[1]/denominator
 									    );
 
       levelSingletons[param_max_levels-1-i].level = param_max_levels-1-i;
@@ -113,6 +116,8 @@ int main(int i_argc, char *i_argv[])
 						     simVars.sim.domain_size,
 						     simVars.disc.use_spectral_basis_diffs
 						     );
+
+      denominator *= 2;
 
     }
 
@@ -131,13 +136,13 @@ int main(int i_argc, char *i_argv[])
   std::cout << "completed the instantiation of the PlaneDataCtx object" << std::endl;
   
   // output the info for the fine level
-  levelSingletons[0].dataConfig.printInformation();
+  levelSingletons[param_max_levels-1].dataConfig.printInformation();
   
   // run a timestep with libpfasst and check that the solution matches the sweet integrators
   fmain(
 	pd_ctx,
 	&param_max_levels,
-	&(levelSingletons[0].dataConfig.physical_array_data_number_of_elements)
+	&(levelSingletons[param_max_levels-1].dataConfig.physical_array_data_number_of_elements)
   	); 
 
   // release the memory
