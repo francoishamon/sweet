@@ -21,9 +21,9 @@
 
 #define WITH_MPI
 
-#if !SWEET_PFASST_CPP
-#	error "Use --pfasst-cpp=enable for this file"
-#endif
+// #if !SWEET_PFASST_CPP
+// #	error "Use --pfasst-cpp=enable for this file"
+// #endif
 
 /**
  * Global variables which are shared between everything
@@ -81,7 +81,7 @@ int main(int i_argc, char *i_argv[])
   // note: level #param_max_levels-1 is the finest, level #0 is the coarsest
 
   // define the number of levels
-  param_max_levels = 3;
+  param_max_levels = 1;
   
   // setup the level singleton
   levelSingletons.resize(param_max_levels);
@@ -121,8 +121,6 @@ int main(int i_argc, char *i_argv[])
 
     }
 
-  std::cout << "completed the definition of the levelSingletons" << std::endl;
-
   /**********************************************************
    * SETUP top level data
    **********************************************************/
@@ -132,8 +130,6 @@ int main(int i_argc, char *i_argv[])
   					  &simVars,
   					  &levelSingletons
   					  );
-  
-  std::cout << "completed the instantiation of the PlaneDataCtx object" << std::endl;
   
   // output the info for the fine level
   levelSingletons[param_max_levels-1].dataConfig.printInformation();
